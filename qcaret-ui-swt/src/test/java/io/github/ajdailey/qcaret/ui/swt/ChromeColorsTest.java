@@ -280,8 +280,17 @@ class ChromeColorsTest {
         }
         chrome.apply(nativeDark);
         for (Composite list : lists) {
+          // Under the dark native setting an unfocused selection is drawn
+          // (Win32UnfocusedSelection).
           Event nativeSide = eraseSelected(list);
-          assertEquals(SWT.SELECTED, nativeSide.detail & SWT.SELECTED, list + ", native side");
+          assertEquals(
+              nativeDark ? 0 : SWT.SELECTED,
+              nativeSide.detail & SWT.SELECTED,
+              list + ", native side");
+          if (nativeDark) {
+            assertEquals(
+                new RGB(0x74, 0x74, 0x74), nativeSide.gc.getBackground().getRGB(), "" + list);
+          }
           nativeSide.gc.dispose();
         }
       } finally {

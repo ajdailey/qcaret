@@ -39,6 +39,7 @@ import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Shell;
+import org.eclipse.swt.widgets.Slider;
 import org.eclipse.swt.widgets.Text;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -152,6 +153,37 @@ class HexCanvasSurfaceTest {
             "clicked 2 false false",
             "dragged 25"),
         input.calls);
+  }
+
+  /** G2 H2c: a pane narrower than a row showed columns 00-06 and no way to reach the rest. */
+  @Test
+  void aNarrowPaneScrollsAcrossAndKeepsTheCaretInView() {
+    HexPane pane = pane(false);
+    Slider across = pane.horizontalBar();
+    assertFalse(across.getVisible());
+    int full = pane.preferredWidth();
+    pane.control().setBounds(0, 0, full / 2, 300);
+    pane.control().layout(true, true);
+    assertTrue(across.getVisible());
+    Canvas canvas = pane.canvas();
+    int width = canvas.getClientArea().width;
+    HexRows rows = pane.rows();
+    pane.showSelection(new HexSelection(15, 15, false));
+    int x = pane.columnX(rows.hexColumn(15));
+    assertTrue(across.getSelection() > 0);
+    assertTrue(x >= 0 && pane.columnX(rows.hexColumn(15) + 2) <= width, x + " in " + width);
+    int line = pane.lineHeight();
+    mouse(canvas, SWT.MouseDown, x + 1, line + line / 2, 0);
+    mouse(canvas, SWT.MouseUp, 0, 0, 0);
+    assertEquals(List.of("clicked 15 false false"), input.calls);
+    pane.showSelection(new HexSelection(16, 16, true));
+    assertTrue(pane.columnX(rows.textColumn(0) + 1) <= width);
+    pane.showSelection(new HexSelection(0, 0, false));
+    assertTrue(pane.columnX(rows.hexColumn(0)) >= 0);
+    pane.control().setBounds(0, 0, full + 20, 300);
+    pane.control().layout(true, true);
+    assertFalse(across.getVisible());
+    assertEquals(HexGrid.PAD, pane.columnX(0));
   }
 
   @Test

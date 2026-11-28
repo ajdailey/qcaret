@@ -57,6 +57,8 @@ The Help commands, the user guide build, UI text and logs (`app.controller`,
 - `PreferencesInput.loadChoices` lists the theme files and the monospace
   families on a `qcaret-io-` worker; the dialog appends the files to Editor
   colors and fills the font list when they arrive.
+- A change of `ui.theme` calls `MainView.showThemeMode`, so an open
+  Preferences dialog shows the setting View > Theme chose.
 
 ## UI text, About and logs
 

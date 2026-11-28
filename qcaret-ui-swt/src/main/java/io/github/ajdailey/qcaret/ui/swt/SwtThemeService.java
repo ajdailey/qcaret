@@ -14,8 +14,6 @@ import java.util.List;
 import java.util.function.BooleanSupplier;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.RGB;
-import org.eclipse.swt.widgets.Button;
-import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Link;
@@ -138,16 +136,6 @@ public final class SwtThemeService implements ThemeService {
    */
   static boolean nativeDark(Display display) {
     return DialogColors.nativeDark(display);
-  }
-
-  /**
-   * Creates a check box readable on its page ({@link DialogColors#check}).
-   *
-   * @param parent the parent
-   * @return the check box
-   */
-  static Button check(Composite parent) {
-    return DialogColors.platform().check(parent);
   }
 
   /**

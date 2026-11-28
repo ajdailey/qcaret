@@ -144,7 +144,7 @@ final class SearchDialog {
   }
 
   private static Button check(Composite parent, UiText text, boolean selected) {
-    Button check = SwtThemeService.check(parent);
+    Button check = new Button(parent, SWT.CHECK);
     check.setText(text.text());
     check.setSelection(selected);
     check.setLayoutData(new GridData(SWT.BEGINNING, SWT.CENTER, false, false));

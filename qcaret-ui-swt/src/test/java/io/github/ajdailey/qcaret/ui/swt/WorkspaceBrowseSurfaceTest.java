@@ -221,6 +221,27 @@ class WorkspaceBrowseSurfaceTest {
   }
 
   @Test
+  void aRefreshKeepsTypedTextAndANewFolderReplacesIt() {
+    final WorkspaceDock dock = browser(List.of("docs/", "build.xml", "README.txt"));
+    final BrowseBar bar = dock.bar();
+    bar.path().setText("typed");
+    bar.filter().setText("*.mock");
+    dock.rebuild();
+    assertEquals("typed", bar.path().getText());
+    assertEquals("*.mock", bar.filter().getText());
+    bar.press(UiText.BROWSE_PARENT);
+    await(
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return root.getParent().toString().equals(bar.path().getText());
+          }
+        },
+        "the parent's path");
+    assertEquals("*.mock", bar.filter().getText());
+  }
+
+  @Test
   void columnsShowSizeAndTimeAndAHeaderClickSorts() {
     final WorkspaceDock dock = browser(List.of("docs/", "build.xml", "README.txt"));
     assertEquals(3, dock.tree().getColumnCount());

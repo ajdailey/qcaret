@@ -30,6 +30,7 @@ import io.github.ajdailey.qcaret.core.concurrent.Workers;
 import io.github.ajdailey.qcaret.core.document.Selection;
 import io.github.ajdailey.qcaret.core.document.SelectionSet;
 import io.github.ajdailey.qcaret.ui.swt.editor.EditorPane;
+import io.github.ajdailey.qcaret.ui.swt.editor.SwtKeys;
 import io.github.ajdailey.qcaret.ui.swt.platform.AccessibleName;
 import io.github.ajdailey.qcaret.ui.swt.platform.AtkNames;
 import io.github.ajdailey.qcaret.ui.swt.platform.MenuBehavior;
@@ -631,7 +632,10 @@ class ToolbarAndMenusTest {
             .withOverrides(
                 ShortcutOverrides.NONE.with(
                     CommandId.RELOAD, List.of(new KeyStroke(0, KeyStroke.F1 + 4)))));
-    assertTrue(before.isDisposed());
+    assertSame(before, tool.getMenuBar());
+    assertEquals(
+        SwtKeys.accelerator(new KeyStroke(0, KeyStroke.F1 + 4)),
+        menus.bars().get(0).item(CommandId.RELOAD).getAccelerator());
     assertNotNull(tool.getMenuBar().getItem(0).getMenu());
     nested.dispose();
     assertEquals(1, menus.bars().size());

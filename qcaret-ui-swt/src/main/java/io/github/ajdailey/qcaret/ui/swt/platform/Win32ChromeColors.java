@@ -4,6 +4,7 @@ import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.Rgb;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BooleanSupplier;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.browser.Browser;
 import org.eclipse.swt.custom.CTabFolder;
@@ -43,9 +44,9 @@ import org.eclipse.swt.widgets.Tree;
  * background image. While it resolves to light every such color and image is null and composites
  * take {@code SWT.INHERIT_NONE}. Both directions apply live.
  *
- * <p>A check box is created under the native setting ({@link DialogColors#check}), so its box draws
- * dark under the dark one; on the light side under that setting its label takes the system widget
- * text, since the dark native box draws it near-white without colors.
+ * <p>A check box is created under the native setting, so its box draws dark under the dark one; on
+ * the light side under that setting its label takes the system widget text, since the dark native
+ * box draws it near-white without colors.
  *
  * <p>Under the dark native setting ({@link DialogColors#nativeDark}) a field holding text keeps the
  * dark colors on the light side until its window is rebuilt, because the dark native field draws
@@ -267,6 +268,14 @@ final class Win32ChromeColors implements ChromeColors {
               event.gc.setForeground(new Color(colors[1]));
               event.detail &= ~(SWT.SELECTED | SWT.HOT);
             }
+          }
+        });
+    Win32UnfocusedSelection.draw(
+        list,
+        new BooleanSupplier() {
+          @Override
+          public boolean getAsBoolean() {
+            return dark && nativeDark();
           }
         });
   }

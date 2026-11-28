@@ -45,6 +45,7 @@ import org.eclipse.swt.widgets.Menu;
 import org.eclipse.swt.widgets.MenuItem;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Table;
+import org.eclipse.swt.widgets.ToolItem;
 import org.eclipse.swt.widgets.Widget;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -230,6 +231,24 @@ class MacroGuiTest {
         "editor focused");
     PostedInput.ctrlShift(display, 'j');
     awaitText("<one\ntwo\nthree\n");
+  }
+
+  /** G2: after a run the toolbar's Undo drew disabled while Edit > Undo worked. */
+  @Test
+  void aRunEnablesTheToolbarUndoOnceItsUndoStepCloses() {
+    final ToolItem undo = window.mainToolBar().item(CommandId.UNDO);
+    assertFalse(undo.getEnabled());
+    controller.runMacro("Wrap");
+    awaitText("<one\ntwo\nthree\n");
+    assertTrue(
+        runUntil(
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                return undo.getEnabled();
+              }
+            }),
+        "the toolbar's Undo enables");
   }
 
   @Test

@@ -27,6 +27,7 @@ import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.Menu;
 import org.eclipse.swt.widgets.Shell;
+import org.eclipse.swt.widgets.Slider;
 
 /**
  * A {@link HexView}: the notice bar, the rows ({@link HexCanvas}), the find bar ({@link
@@ -235,6 +236,11 @@ public final class HexPane implements HexView {
    */
   public int columnX(int column) {
     return rows.columnX(column);
+  }
+
+  /** Returns the horizontal scroll bar, hidden while a full row fits. */
+  public Slider horizontalBar() {
+    return rows.horizontalBar();
   }
 
   /** Returns the layout shown. */

@@ -35,13 +35,13 @@ import org.eclipse.swt.widgets.Shell;
  * <p>Showing a top menu, or running one of its items, syncs that menu only. Enablement of every
  * item also follows {@link #syncEnablement}, which the window runs on each document and focus
  * change, because a disabled item's accelerator does not fire. Each encoding cascade is an {@link
- * EncodingCascade}, whose Other cascade {@link #encodingsLoaded} fills and {@link #build} refills
- * for a new keymap. The View menu's Syntax cascade holds the {@link SyntaxMenu} entries above
- * Reload Grammars, rebuilt each time the View menu shows; {@link #showSyntaxMenu} pops up the same
- * entries. {@link RecentMenus} rebuilds the File menu's Recent Files and Recently Closed listings
- * each time the File menu shows. {@link SavedMacroItems} adds the saved macros to the Macros menu
- * when the bar is built. {@link MenuIcons} gives the command items their icons; the listing
- * cascades carry none. Call on the UI thread.
+ * EncodingCascade}, whose Other cascade {@link #encodingsLoaded} fills. {@link #apply} changes the
+ * keys of the built bar and never replaces it. The View menu's Syntax cascade holds the {@link
+ * SyntaxMenu} entries above Reload Grammars, rebuilt each time the View menu shows; {@link
+ * #showSyntaxMenu} pops up the same entries. {@link RecentMenus} rebuilds the File menu's Recent
+ * Files and Recently Closed listings each time the File menu shows. {@link SavedMacroItems} adds
+ * the saved macros to the Macros menu when the bar is built. {@link MenuIcons} gives the command
+ * items their icons; the listing cascades carry none. Call on the UI thread.
  */
 final class MainMenuBar {
   /** Widget data of the Window menu's document entries. */
@@ -123,14 +123,13 @@ final class MainMenuBar {
   }
 
   /**
-   * Creates the menu bar with the keys of a keymap, sets it on the shell and disposes the previous
-   * one. Each item shows every key of its command; only window bindings become accelerators.
+   * Creates the menu bar with the keys of a keymap and sets it on the shell; call once. Each item
+   * shows every key of its command; only window bindings become accelerators.
    *
    * @param keymap the key bindings
    */
   void build(Keymap keymap) {
     built = keymap;
-    Menu old = shell.getMenuBar();
     items.clear();
     menus.clear();
     Menu bar = new Menu(shell, SWT.BAR);
@@ -178,12 +177,7 @@ final class MainMenuBar {
         MenuItem item =
             new MenuItem(target, radio ? SWT.RADIO : command.check() ? SWT.CHECK : SWT.PUSH);
         item.setData(command);
-        String keys = keymap.menuKeyText(command);
-        item.setText(keys.isEmpty() ? command.label() : command.label() + "\t" + keys);
-        KeyStroke accelerator = keymap.accelerator(command);
-        if (accelerator != null) {
-          item.setAccelerator(SwtKeys.accelerator(accelerator));
-        }
+        showKeys(item, command, keymap);
         item.addListener(
             SWT.Selection,
             new Listener() {
@@ -202,9 +196,6 @@ final class MainMenuBar {
         if (command == CommandId.ALWAYS_ON_TOP && !states.enabled(command)) {
           WindowStacking.PLATFORM.explainUnsupported(item);
         }
-        if (command == CommandId.PREVIEW_BROWSER) {
-          showReason(item, command);
-        }
       }
       icons.decorate(menu);
       if (group == CommandGroup.MACROS) {
@@ -220,9 +211,6 @@ final class MainMenuBar {
           });
     }
     shell.setMenuBar(bar);
-    if (old != null) {
-      old.dispose();
-    }
     if (encodings != null) {
       encodingsLoaded(encodings);
     }
@@ -230,22 +218,46 @@ final class MainMenuBar {
   }
 
   /**
-   * Applies a keymap: when only its saved macros differ from the one built, replaces the Macros
-   * menu's saved macro items and keeps the bar; otherwise {@link #build}. On GTK 4 a replaced bar
-   * followed by a dialog closing crashed the process in {@code gtk_widget_has_focus} (measured
-   * under Xvfb), so a change of the macros folder does not replace the bar.
+   * Applies a keymap to the built bar: each item's keys and accelerator, and the Macros menu's
+   * saved macro items. The bar and its menus stay; on GTK 4 a replaced bar followed by a dialog
+   * closing crashed the process in {@code gtk_widget_has_focus} (measured under Xvfb). Builds the
+   * bar when none is built.
    *
    * @param keymap the key bindings
    */
   void apply(Keymap keymap) {
-    Menu macros = menus.get(CommandGroup.MACROS);
-    if (built == null || !built.sameBindings(keymap) || macros == null || macros.isDisposed()) {
+    if (built == null) {
       build(keymap);
       return;
     }
+    if (shell.isDisposed()) {
+      return;
+    }
+    boolean keys = !built.sameBindings(keymap);
     built = keymap;
-    SavedMacroItems.replace(macros, keymap, controller);
-    SavedMacroItems.sync(macros, states);
+    if (keys) {
+      for (Map.Entry<CommandId, MenuItem> entry : items.entrySet()) {
+        if (!entry.getValue().isDisposed()) {
+          showKeys(entry.getValue(), entry.getKey(), keymap);
+        }
+      }
+    }
+    Menu macros = menus.get(CommandGroup.MACROS);
+    if (macros != null && !macros.isDisposed()) {
+      SavedMacroItems.replace(macros, keymap, controller);
+      SavedMacroItems.sync(macros, states);
+    }
+  }
+
+  /** Shows a command's keys in its item's text and its window binding as the accelerator. */
+  private void showKeys(MenuItem item, CommandId command, Keymap keymap) {
+    String keys = keymap.menuKeyText(command);
+    item.setText(keys.isEmpty() ? command.label() : command.label() + "\t" + keys);
+    KeyStroke accelerator = keymap.accelerator(command);
+    item.setAccelerator(accelerator == null ? 0 : SwtKeys.accelerator(accelerator));
+    if (command == CommandId.PREVIEW_BROWSER) {
+      showReason(item, command);
+    }
   }
 
   /**

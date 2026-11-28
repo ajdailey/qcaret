@@ -1,6 +1,7 @@
 package io.github.ajdailey.qcaret.ui.swt;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -157,7 +158,7 @@ class Win32DarkDialogsTest {
     Button push = new Button(dialog, SWT.PUSH);
     push.setText("Push");
     controls.put("Button push", push);
-    Button check = SwtThemeService.check(dialog);
+    Button check = new Button(dialog, SWT.CHECK);
     check.setText("Check (service)");
     controls.put("Button check service", check);
     Button plain = new Button(dialog, SWT.CHECK);
@@ -219,7 +220,7 @@ class Win32DarkDialogsTest {
       Composite page = folder.add(title);
       page.setLayout(new GridLayout(2, false));
       new Label(page, SWT.NONE).setText("Label on " + title);
-      Button box = SwtThemeService.check(page);
+      Button box = new Button(page, SWT.CHECK);
       box.setText("Check on " + title);
       text(page, SWT.BORDER, true);
       if (controls.get("Dialog tabs page") == null) {
@@ -447,6 +448,61 @@ class Win32DarkDialogsTest {
             hex(control.getBackground().getRGB()),
             hex(control.getForeground().getRGB())));
     return new Reading(ground, SwtThemeService.contrast(ink, ground));
+  }
+
+  /**
+   * G1 (OBERON): a selected row without focus drew {@code #252525} on the {@code #2b2b2b} field,
+   * 1.1:1. It draws at least 3:1 on the field with readable text, apart from the focused selection.
+   */
+  @Test
+  void anUnfocusedSelectionReadsInADarkTableAndTree() {
+    assumeTrue("win32".equals(SWT.getPlatform()), "win32 dark dialogs");
+    display = new Display();
+    SwtThemeService.open(display, ThemeMode.DARK);
+    Shell parent = new Shell(display, SWT.SHELL_TRIM);
+    parent.setBounds(40, 40, 300, 200);
+    parent.open();
+    Shell dialog = Dialogs.shell(parent, "Dialog", true);
+    Table table = new Table(dialog, SWT.BORDER | SWT.FULL_SELECTION);
+    TableColumn column = new TableColumn(table, SWT.NONE);
+    column.setWidth(160);
+    for (int i = 0; i < 4; i++) {
+      new TableItem(table, SWT.NONE).setText("Table row " + i);
+    }
+    table.setLayoutData(new GridData(180, 90));
+    Tree tree = new Tree(dialog, SWT.BORDER | SWT.FULL_SELECTION);
+    for (int i = 0; i < 4; i++) {
+      new TreeItem(tree, SWT.NONE).setText("Tree row " + i);
+    }
+    tree.setLayoutData(new GridData(180, 90));
+    Text other = text(dialog, SWT.BORDER, true);
+    Dialogs.open(dialog, SWT.DEFAULT, SWT.DEFAULT);
+    dialog.forceActive();
+    settle();
+    ScreenProbe.assumeShows(dialog);
+    table.select(0);
+    tree.setSelection(tree.getItem(0));
+    for (Control list : new Control[] {table, tree}) {
+      other.setFocus();
+      settle();
+      Rectangle row =
+          list instanceof Table t ? t.getItem(0).getBounds() : tree.getItem(0).getBounds();
+      Point at = list.toDisplay(row.x, row.y);
+      ImageData unfocused = capture(new Rectangle(at.x, at.y, row.width, row.height), list);
+      RGB ground = list.getBackground().getRGB();
+      RGB fill = rowMode(unfocused, row.height / 2);
+      RGB ink = strongest(unfocused, fill);
+      report.append(list + " unfocused " + hex(fill) + " ink " + hex(ink) + "\n");
+      list.setFocus();
+      settle();
+      RGB focused =
+          rowMode(capture(new Rectangle(at.x, at.y, row.width, row.height), list), row.height / 2);
+      report.append(list + " focused " + hex(focused) + "\n");
+      save("unfocused-selection", unfocused);
+      assertTrue(SwtThemeService.contrast(fill, ground) >= 3, report.toString());
+      assertTrue(SwtThemeService.contrast(ink, fill) >= TEXT_CONTRAST, report.toString());
+      assertNotEquals(focused, fill, report.toString());
+    }
   }
 
   private void settle() {

@@ -2,6 +2,7 @@ package io.github.ajdailey.qcaret.app.view;
 
 import io.github.ajdailey.qcaret.app.about.AboutInfo;
 import io.github.ajdailey.qcaret.app.command.Keymap;
+import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.function.Consumer;
@@ -258,6 +259,13 @@ public interface MainView
    * @param input the dialog's controller
    */
   void showPreferences(PreferencesInput input);
+
+  /**
+   * Shows a changed theme setting in an open Preferences dialog.
+   *
+   * @param mode the theme setting
+   */
+  void showThemeMode(ThemeMode mode);
 
   /**
    * Rebuilds the menus and the editors' keys from a keymap.

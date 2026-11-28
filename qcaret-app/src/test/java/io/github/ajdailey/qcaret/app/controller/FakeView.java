@@ -7,6 +7,7 @@ import io.github.ajdailey.qcaret.app.editor.DisplayProjection;
 import io.github.ajdailey.qcaret.app.editor.LineChanges;
 import io.github.ajdailey.qcaret.app.editor.OverviewMarks;
 import io.github.ajdailey.qcaret.app.editor.TokenSource;
+import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.app.view.BinaryChoice;
 import io.github.ajdailey.qcaret.app.view.BookmarksInput;
 import io.github.ajdailey.qcaret.app.view.ChangeChoice;
@@ -930,6 +931,15 @@ final class FakeView implements MainView {
   public void showPreferences(PreferencesInput input) {
     ui.checkUiThread();
     preferences = input;
+  }
+
+  /** The last {@link #showThemeMode}, or null before one. */
+  ThemeMode themeMode;
+
+  @Override
+  public void showThemeMode(ThemeMode mode) {
+    ui.checkUiThread();
+    themeMode = mode;
   }
 
   @Override

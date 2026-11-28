@@ -386,6 +386,9 @@ public final class ApplicationController {
     if (!after.shortcuts().equals(before.shortcuts())) {
       keymapChanged();
     }
+    if (after.theme() != before.theme()) {
+      view.showThemeMode(after.theme());
+    }
   }
 
   /** Gives the window's keys, menus and Keyboard Shortcuts the set's keymap. */

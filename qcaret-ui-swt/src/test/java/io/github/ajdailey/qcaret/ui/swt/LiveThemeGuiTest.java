@@ -555,6 +555,36 @@ class LiveThemeGuiTest {
     assertEquals(size, hex.windows().get(0).pane().rows().size());
   }
 
+  /** G1 K1: after each theme switch the path field showed the workspace folder again. */
+  @Test
+  void theWorkspaceBrowserFieldsKeepTypedTextOverARebuild() throws Exception {
+    final ApplicationController controller = first();
+    final Path root = Files.createDirectory(temp.resolve("mock-root")).toRealPath();
+    controller.workspace().set(root);
+    controller.execute(CommandId.WORKSPACE_BROWSER);
+    assertTrue(
+        runUntil(
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                return root.toString()
+                    .equals(slots.get(0).window().workspaceDock().bar().path().getText());
+              }
+            }),
+        "the path field shows the workspace");
+    BrowseBar bar = slots.get(0).window().workspaceDock().bar();
+    bar.path().setText("typed-folder");
+    bar.filter().setText("*.mock");
+
+    toggle();
+    settle();
+
+    BrowseBar now = slots.get(0).window().workspaceDock().bar();
+    assertNotSame(bar, now);
+    assertEquals("typed-folder", now.path().getText());
+    assertEquals("*.mock", now.filter().getText());
+  }
+
   @Test
   void aModalPromptDefersOnlyItsOwnWindow() throws Exception {
     ApplicationController controller = first();

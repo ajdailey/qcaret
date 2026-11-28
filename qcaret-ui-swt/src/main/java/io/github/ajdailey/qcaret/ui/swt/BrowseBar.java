@@ -23,7 +23,8 @@ import org.eclipse.swt.widgets.ToolItem;
  * folder (Enter shows the typed folder), the filter field (Enter applies it) and the Hidden check
  * box. The path field's tool tip says whether it shows the workspace folder; the Workspace item is
  * enabled only when it does not. Favorites opens a menu of the favorite folders with Add Shown
- * Folder and Remove Shown Folder, built at each opening.
+ * Folder and Remove Shown Folder, built at each opening. Each field takes the model's text only
+ * when that text changed, so an update that changes neither keeps what the user typed.
  */
 final class BrowseBar {
   private final Composite root;
@@ -38,6 +39,8 @@ final class BrowseBar {
   private Menu menu;
   private WorkspaceBrowseInput input;
   private String workspaceFolder = UiText.WORKSPACE_NONE.text();
+  private String shownPath;
+  private String shownFilter;
 
   /**
    * Creates the controls.
@@ -64,7 +67,7 @@ final class BrowseBar {
     filter = new Text(root, SWT.SINGLE | SWT.BORDER);
     filter.setMessage(UiText.BROWSE_FILTER_HINT.text());
     filter.setLayoutData(field(1));
-    hidden = SwtThemeService.check(root);
+    hidden = new Button(root, SWT.CHECK);
     hidden.setText(UiText.BROWSE_HIDDEN.text());
     Listener listener =
         new Listener() {
@@ -136,7 +139,10 @@ final class BrowseBar {
     path.setEnabled(on);
     filter.setEnabled(on);
     String shown = on ? input.shownFolder() : "";
-    path.setText(shown);
+    if (!shown.equals(shownPath)) {
+      shownPath = shown;
+      path.setText(shown);
+    }
     boolean none = workspaceFolder.equals(UiText.WORKSPACE_NONE.text());
     path.setMessage(none ? workspaceFolder : UiText.BROWSE_PATH_HINT.text());
     String tip = null;
@@ -148,8 +154,25 @@ final class BrowseBar {
       }
     }
     path.setToolTipText(tip);
-    filter.setText(on ? input.filter() : "");
+    String applied = on ? input.filter() : "";
+    if (!applied.equals(shownFilter)) {
+      shownFilter = applied;
+      filter.setText(applied);
+    }
     hidden.setSelection(on && input.hiddenShown());
+  }
+
+  /**
+   * Takes the path and filter fields' text from the bar of a window this one replaces.
+   *
+   * @param old the replaced window's bar
+   */
+  void takeFields(BrowseBar old) {
+    if (root.isDisposed() || old.root.isDisposed()) {
+      return;
+    }
+    path.setText(old.path.getText());
+    filter.setText(old.filter.getText());
   }
 
   private void act(Object widget) {

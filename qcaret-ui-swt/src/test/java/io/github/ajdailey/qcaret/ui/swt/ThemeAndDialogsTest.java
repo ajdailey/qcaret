@@ -292,7 +292,7 @@ class ThemeAndDialogsTest {
     Shell shell = new Shell(display);
     try {
       SwtThemeService.open(display, ThemeMode.DARK);
-      Button check = SwtThemeService.check(shell);
+      Button check = new Button(shell, SWT.CHECK);
       assertTrue((check.getStyle() & SWT.CHECK) != 0);
       assertTrue(check.getEnabled());
     } finally {

@@ -282,6 +282,8 @@ apply (measured on Linux, one million lines):
   whole, with their state; choosing one runs it. The toolbar keeps one height
   whatever tab is selected. A screen reader reads each
   button by its command, or on Linux with `--gtk4` by its tool tip.
+- The window does not narrow past the width the status bar fields and the
+  find field need.
 - Common menu items show an icon on Linux and Windows, the same one as their
   toolbar button. macOS menus show none.
 - The title bar shows the selected document's name, a `*` while it has unsaved
@@ -1038,6 +1040,8 @@ In a hex pane or a Hex Viewer:
   go to the first and last byte. Click a byte to put the caret on it, and drag
   or `Shift`+click to select. Tab moves the caret between the hex and the text
   column.
+- When the pane is narrower than a row, a scroll bar under the rows reaches the
+  other columns, and a caret move scrolls the caret's byte into view.
 - Copy (`Ctrl+C`) copies the selection from the caret's column: hex pairs such
   as `4D 5A 90 00`, or text. The right-click menu also has Copy as Hex, Copy as
   Text and Copy Offset, which copies the selection's first offset, or the
@@ -1384,7 +1388,8 @@ so the keys repeat.
 | Keys | Every command's keys, with a filter: Clear, Add, Remove, Default Keys, Restore All Defaults; each saved macro's key, which Manage Macros sets |
 
 Restore Defaults fills every tab with the default values; nothing changes until
-OK or Apply. Add refuses a key that types text or that another command or a
+OK or Apply. A theme chosen from View > Theme while the dialog is open shows in
+its Theme field. Add refuses a key that types text or that another command or a
 saved macro holds, and names it; a changed command reads "(changed)". Restore All
 Defaults drops every key change on OK or Apply. Clear History removes the
 saved search texts, replacements, directories

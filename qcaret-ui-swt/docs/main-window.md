@@ -31,6 +31,12 @@ by side. Below them are the find bar, the `ProgressRow` rows and a status bar.
   `closeWindow`.
 - `MainWindow` asks the controller to check the open files whenever the shell
   is activated.
+- `open` sets the shell's minimum width from its content
+  (`MainWindowMinimum`): the find bar's widest control (the field), the status
+  bar's shown fields without the notice, and the toolbar's More button, since
+  the toolbar narrows to it. The find bar's full row is wider than the window
+  sizes in use, so its controls past the edge clip. Without it the minimum is the trim, and macOS
+  narrowed the window to 82 pt.
 
 ## Tabs
 
@@ -169,9 +175,10 @@ scroll.
 - The Macros menu lists the saved macros after a separator (`SavedMacroItems`),
   each with its key as the item's accelerator, built with the menu bar rather
   than on `Show` so the keys work before the menu first opens. The items are
-  enabled from `CommandStates.savedMacroEnabled` with the other items. A
-  keymap that differs only in its saved macros replaces those items and keeps
-  the bar (`MainMenuBar.apply`): on GTK 4 a replaced bar followed by a dialog
+  enabled from `CommandStates.savedMacroEnabled` with the other items.
+- A new keymap, from Preferences or the macros folder, keeps the bar
+  (`MainMenuBar.apply`): each item takes its new keys and accelerator and the
+  saved macro items are replaced. On GTK 4 a replaced bar followed by a dialog
   closing crashed the JVM in `gtk_widget_has_focus` (5 of 5 runs of
   `MacroGuiTest` under Xvfb; 0 of 5 with the bar kept).
 - The Window menu lists the windows, when there are several, and the open
@@ -495,9 +502,11 @@ block is the window's creation or one tab:
    The old window stays shown, keeps every tab bound and takes all input.
 3. Swaps: reads the old window's bounds, maximized, full screen and minimized
    state, the side, dock and results weights and the Workspace Browser's
-   expanded folders, calls `MainWindowSlot.replace`, gives the new results
-   dock the old one's expanded sets and groups and selected row
-   (`ResultsDock.takeState`), then
+   expanded folders, calls `MainWindowSlot.replace`, gives the new Workspace
+   Browser the text of the replaced path and filter fields
+   (`BrowseBar.takeFields`) and
+   the new results dock the old one's expanded sets and groups and selected
+   row (`ResultsDock.takeState`), then
    `DocumentController.rebindViews`: each tab closes in the old window and its
    editors attach to the staged views, with the split arrangement and weights,
    focused pane, top rows, Markdown preview content and an open completion
@@ -645,7 +654,7 @@ default method carries behavior.
 | Seam | win32 | cocoa | GTK 3 | GTK 4 | Caller |
 |---|---|---|---|---|---|
 | `ChromeColors` (`chromeColors(display)`, per window) | `Win32ChromeColors`: the toolbar row, status bar, find bar, progress rows, docks, their fields, trees and tables, and preview notices in neutral grays under dark; checked tool item ink; a tree's selection on the other side | `NativeChromeColors`, no-op | `GtkChromeColors`: icon sets fade disabled tool items on the light ink | As GTK 3 | `MainWindow` (see [Chrome colors](theme-and-icons.md#chrome-colors)) |
-| `DialogColors` | `Win32DialogColors`: dialog colors, field hints, drawn grid lines and dark header dividers under a dark start | `NativeDialogColors`: native colors | As cocoa | As cocoa | `Dialogs.shell`, `Dialogs.gridLines`, `HistoryField`, `DiffWindow`, `SwtThemeService.check` (see [Dialog colors](theme-and-icons.md#dialog-colors)) |
+| `DialogColors` | `Win32DialogColors`: dialog colors, field hints, drawn grid lines and dark header dividers under a dark start | `NativeDialogColors`: native colors | As cocoa | As cocoa | `Dialogs.shell`, `Dialogs.gridLines`, `HistoryField`, `DiffWindow` (see [Dialog colors](theme-and-icons.md#dialog-colors)) |
 | `DialogTabs` (`dialogTabs(parent)`, per dialog) | `Win32DialogTabs` under the dark native setting: a `CTabFolder` in the dialog colors; else `NativeDialogTabs` | `CocoaDialogTabs`: the native `TabFolder`, keeping keyboard focus on a control across a tab change | `NativeDialogTabs`: the native `TabFolder` | As GTK 3 | `Dialogs.tabs`: Preferences (see [Dialog colors](theme-and-icons.md#dialog-colors)) |
 | `ThemeFollow` (`themeFollow(display)`) | `Win32ThemeFollow`: sets the native theme before the first Shell (`NativeTheme.set`), System from the system setting; polls the setting; a change of side sets it again and rebuilds the main windows ([theme rebuild](#theme-rebuild)) | `CocoaThemeFollow`: pins the appearance at start and at each change; polls; `CocoaChrome` recolors shells from the pinned side | `GtkThemeFollow`: sets it for light and dark, switches it live, raises link contrast at creation and at each `SWT.Settings` | As GTK 3 | `SwtThemeService` |
 | `MenuBehavior` | `Win32MenuBehavior`: menu icons in the ink of the side pop-up menus show (`Win32MenuThemes.shownDark`); reasons in tool tips | `CocoaMenuBehavior`: no menu icons; the application menu (`hookAppMenu`, `systemCommands`); the main menus on tool windows (`toolWindowMenus`) | `Gtk3MenuBehavior`: blank-padded menu icons; a disabled menu icon on dark shows the faded copy (`disabledOnDark`) | `Gtk4MenuBehavior`: no menu icons (SWT ignores `setImage`); a disabled item's reason in its label | `MainMenuBar`, `AppMenu`, `ToolMenuBars`, `MenuIcons`, `ToolIcons`, `StatusMenus`, `ToolbarOverflow`, `MarkdownToolItems` (see [Menus](#menus)) |

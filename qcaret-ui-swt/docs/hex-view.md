@@ -92,4 +92,10 @@ left out while empty. The status line is a wrapping `Label`, and
 `HexPane.showStatus` lays the pane out again when its line count changes. A Hex
 Viewer window's minimum width is at least `HexPane.minimumWidth`, the widest
 find bar control (the field), since GTK sets no native minimum. A tab's pane
-has no minimum, as the main window has none, so there the field narrows.
+has no minimum of its own, so there the field narrows.
+
+While the canvas is narrower than a full row, `HexCanvas` shows a horizontal
+`Slider` under it, and `HexGrid` takes the scroll as `left`: every x it returns
+or hit-tests is shifted by it, so painting and clicks need no other change. A
+selection change scrolls the caret's cell in its column into view. Widening
+the canvas past a row hides the slider and scrolls back to the left edge.

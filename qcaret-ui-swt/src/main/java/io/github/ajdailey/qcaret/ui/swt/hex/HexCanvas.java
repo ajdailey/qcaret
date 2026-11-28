@@ -27,17 +27,19 @@ import org.eclipse.swt.widgets.Slider;
 
 /**
  * The rows of a hex view: a double-buffered {@link Canvas} painted by {@link HexPainter}, with a
- * {@link Slider} as its vertical scroll bar, input through {@link HexGestures}. The grid is
- * measured from the font: the advance is the width of {@link ColumnMetrics#sample} over its length,
- * kept fractional, and each cell sits at {@code round(column * advance)}. A resize, a font change
- * or {@code SWT.ZoomChanged} measures again and reports the visible rows. The font belongs to the
- * caller, which replaces it through {@link #setFont} before disposing the old one. Call on the UI
- * thread.
+ * {@link Slider} as its vertical scroll bar, input through {@link HexGestures}. A second,
+ * horizontal {@link Slider} shows while the canvas is narrower than a full row, and a caret move
+ * scrolls the caret's cell into view. The grid is measured from the font: the advance is the width
+ * of {@link ColumnMetrics#sample} over its length, kept fractional, and each cell sits at {@code
+ * round(column * advance)}. A resize, a font change or {@code SWT.ZoomChanged} measures again and
+ * reports the visible rows. The font belongs to the caller, which replaces it through {@link
+ * #setFont} before disposing the old one. Call on the UI thread.
  */
 final class HexCanvas {
   private final Composite frame;
   private final Canvas canvas;
   private final Slider slider;
+  private final Slider across;
   private final HexInput input;
   private final HexPainter painter;
   private final HexGestures gestures;
@@ -96,6 +98,19 @@ final class HexCanvas {
             input.scrolled(slider.getSelection());
           }
         });
+    across = new Slider(frame, SWT.HORIZONTAL);
+    GridData acrossData = new GridData(SWT.FILL, SWT.CENTER, true, false);
+    acrossData.exclude = true;
+    across.setLayoutData(acrossData);
+    across.setVisible(false);
+    across.addListener(
+        SWT.Selection,
+        new Listener() {
+          @Override
+          public void handleEvent(Event event) {
+            scrollTo(across.getSelection());
+          }
+        });
     canvas.addListener(
         SWT.Paint,
         new Listener() {
@@ -130,6 +145,11 @@ final class HexCanvas {
   /** Returns the scroll bar. */
   Slider slider() {
     return slider;
+  }
+
+  /** Returns the horizontal scroll bar, hidden while a full row fits. */
+  Slider horizontalBar() {
+    return across;
   }
 
   /** Returns the context menu, or null before it first showed. */
@@ -203,7 +223,8 @@ final class HexCanvas {
   /** Shows a layout and measures the grid for it. */
   void showLayout(HexRows value) {
     rows = value;
-    grid = new HexGrid(rows, advance, lineHeight);
+    grid = new HexGrid(rows, advance, lineHeight).scrolled(grid.left());
+    fitAcross();
     canvas.redraw();
   }
 
@@ -221,6 +242,7 @@ final class HexCanvas {
   /** Shows the caret and selection. */
   void showSelection(HexSelection value) {
     selection = value;
+    reveal();
     canvas.redraw();
   }
 
@@ -283,11 +305,75 @@ final class HexCanvas {
     } finally {
       gc.dispose();
     }
-    grid = new HexGrid(rows, advance, lineHeight);
+    grid = new HexGrid(rows, advance, lineHeight).scrolled(grid == null ? 0 : grid.left());
+    fitAcross();
     int fit = visibleRows();
     if (fit != shownRows) {
       shownRows = fit;
       input.resized(fit);
+    }
+  }
+
+  /**
+   * Shows the horizontal scroll bar while a full row is wider than the canvas, else hides it and
+   * scrolls back to the left edge.
+   */
+  private void fitAcross() {
+    int width = canvas.getClientArea().width;
+    int full = grid.rowWidth();
+    boolean needed = width > 0 && full > width;
+    GridData data = (GridData) across.getLayoutData();
+    if (data.exclude == needed) {
+      data.exclude = !needed;
+      across.setVisible(needed);
+      frame.layout(true);
+      width = canvas.getClientArea().width;
+    }
+    if (needed) {
+      int step = Math.max(1, (int) Math.round(advance));
+      across.setValues(Math.min(grid.left(), full - width), 0, full, width, step, width);
+      scrollTo(across.getSelection());
+    } else {
+      scrollTo(0);
+    }
+  }
+
+  /** Scrolls the caret's cell into view horizontally. */
+  private void reveal() {
+    int width = canvas.getClientArea().width;
+    if (across.isDisposed() || !across.getVisible() || width <= 0) {
+      return;
+    }
+    long at = selection.caret();
+    int index = (int) (at - rows.rowStart(rows.rowOf(at)));
+    int start;
+    int end;
+    if (selection.textColumn()) {
+      start = rows.textColumn(index);
+      end = start + 1;
+    } else {
+      start = rows.hexColumn(index);
+      end = start + 2;
+    }
+    int x = grid.x(start);
+    int right = grid.x(end);
+    int left = grid.left();
+    if (x < 0) {
+      left += x;
+    } else if (right > width) {
+      left += Math.min(x, right - width);
+    }
+    if (left != grid.left()) {
+      across.setSelection(left);
+      scrollTo(across.getSelection());
+    }
+  }
+
+  private void scrollTo(int left) {
+    HexGrid next = grid.scrolled(Math.max(0, left));
+    if (next != grid) {
+      grid = next;
+      canvas.redraw();
     }
   }
 

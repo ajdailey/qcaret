@@ -1,8 +1,6 @@
 package io.github.ajdailey.qcaret.ui.swt.platform;
 
 import org.eclipse.swt.graphics.Color;
-import org.eclipse.swt.widgets.Button;
-import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Shell;
@@ -62,14 +60,6 @@ public interface DialogColors {
    * @return the dialog color, or the owner's background where dialogs keep native colors
    */
   Color background(Shell owner);
-
-  /**
-   * Creates a check box readable on its page.
-   *
-   * @param parent the parent
-   * @return the check box
-   */
-  Button check(Composite parent);
 
   /**
    * Shows a dialog table's grid lines. Use in place of {@link Table#setLinesVisible}: win32 draws

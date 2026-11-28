@@ -112,6 +112,8 @@ class ApplicationControllerTest {
     ApplicationController controller = controller(true);
     controller.execute(CommandId.THEME_DARK);
     assertEquals(Palette.DARK, controller.theme().palette());
+    // An open Preferences dialog shows the new setting.
+    assertEquals(ThemeMode.DARK, view.themeMode);
     assertTrue(ui.runUntil(saved(Preferences.DEFAULTS.withTheme(ThemeMode.DARK)), BOUND));
     assertEquals(0, view.infos.size());
   }

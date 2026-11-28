@@ -88,7 +88,7 @@ final class ToolMenuBars implements MenuBehavior.ToolMenus {
   }
 
   /**
-   * Rebuilds every bar with new key bindings.
+   * Gives every bar new key bindings ({@link MainMenuBar#apply}).
    *
    * @param next the key bindings
    */

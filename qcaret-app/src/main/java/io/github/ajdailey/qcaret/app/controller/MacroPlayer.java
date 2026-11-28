@@ -447,6 +447,8 @@ final class MacroPlayer {
     if (grouped) {
       grouped = false;
       document.endGroup();
+      // Undo and Redo are disabled inside a group, and closing one changes no text.
+      window.view().editStateChanged();
     }
     if (held != null) {
       held.holdRedraw(false);

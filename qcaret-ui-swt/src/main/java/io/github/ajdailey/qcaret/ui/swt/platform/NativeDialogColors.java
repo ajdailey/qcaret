@@ -1,9 +1,6 @@
 package io.github.ajdailey.qcaret.ui.swt.platform;
 
-import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Color;
-import org.eclipse.swt.widgets.Button;
-import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Table;
@@ -29,11 +26,6 @@ final class NativeDialogColors implements DialogColors {
   @Override
   public Color background(Shell owner) {
     return owner.getBackground();
-  }
-
-  @Override
-  public Button check(Composite parent) {
-    return new Button(parent, SWT.CHECK);
   }
 
   @Override

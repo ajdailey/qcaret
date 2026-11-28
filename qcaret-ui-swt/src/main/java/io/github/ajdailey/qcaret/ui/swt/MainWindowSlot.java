@@ -3,6 +3,7 @@ package io.github.ajdailey.qcaret.ui.swt;
 import io.github.ajdailey.qcaret.app.about.AboutInfo;
 import io.github.ajdailey.qcaret.app.command.Keymap;
 import io.github.ajdailey.qcaret.app.editor.DisplayProjection;
+import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.app.view.BinaryChoice;
 import io.github.ajdailey.qcaret.app.view.BookmarksInput;
 import io.github.ajdailey.qcaret.app.view.BusyCounter;
@@ -483,6 +484,11 @@ public final class MainWindowSlot implements MainView {
   @Override
   public void showPreferences(PreferencesInput input) {
     view.showPreferences(input);
+  }
+
+  @Override
+  public void showThemeMode(ThemeMode mode) {
+    view.showThemeMode(mode);
   }
 
   @Override

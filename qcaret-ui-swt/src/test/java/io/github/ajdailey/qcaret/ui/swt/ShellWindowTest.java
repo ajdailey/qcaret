@@ -209,6 +209,21 @@ class ShellWindowTest {
     assertEquals("two.txt", window.clipboardText());
   }
 
+  /** G2 H2c: macOS narrowed the main window to 82 pt, clipping every control. */
+  @Test
+  void theMinimumWidthHoldsTheFindBarTheStatusFieldsAndMore() {
+    Shell shell = window.shell();
+    int minimum = shell.getMinimumSize().x;
+    int find = MainWindowMinimum.widest(window.findBar().control());
+    assertTrue(find >= FindBar.FIELD_WIDTH, "the find field " + find);
+    Control notice = window.statusBar().getChildren()[0];
+    int status = MainWindowMinimum.statusWidth(window.statusBar(), notice);
+    assertTrue(status > 0);
+    assertTrue(minimum >= shell.computeTrim(0, 0, find, 0).width, minimum + " < find " + find);
+    assertTrue(
+        minimum >= shell.computeTrim(0, 0, status, 0).width, minimum + " < status " + status);
+  }
+
   @Test
   void aFontChangeKeepsTheWidgetsAndTheFocus() throws Exception {
     openFile("font.txt", "some text\n");

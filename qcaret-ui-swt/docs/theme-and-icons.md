@@ -99,13 +99,17 @@ window procedure and frees the callback. If an SWT upgrade drops a member, one
 WARN is logged, the native selection stays, and `Win32ComboListSelectionTest`
 fails on win32.
 
-Every check box comes from `SwtThemeService.check`, which calls
-`DialogColors.check`; every implementation creates the box under the native
+Under the dark native setting a selected row in a table or tree without focus
+draws `#252525` on the `#2b2b2b` field, 1.1:1. `Win32UnfocusedSelection` draws
+it `#747474` with white text (3.03:1 on the field, text 4.67:1) in every dark
+table and tree `Win32DialogColors` and `Win32ChromeColors` color; a focused
+list keeps the native `#223e55`.
+
+A check box is a plain `Button` with `SWT.CHECK`, created under the native
 setting. Under the dark one win32 draws the box dark (unchecked interior
 `#242424`) and its label near-white, in a dialog and in the dark main window
 alike; the light chrome gives the label system text ([chrome
-colors](#chrome-colors)). A `MenuItem` or `Table` with `SWT.CHECK` has no such
-label and does not use it.
+colors](#chrome-colors)).
 
 Measured on `windows-2025` with SWT 3.135.0 under the dark native setting
 (`Win32DarkInkTest` saves the window and the readings to

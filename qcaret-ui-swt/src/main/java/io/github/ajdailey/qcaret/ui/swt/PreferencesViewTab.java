@@ -48,7 +48,7 @@ final class PreferencesViewTab {
   }
 
   private static Button check(Composite page, UiText label) {
-    Button button = SwtThemeService.check(page);
+    Button button = new Button(page, SWT.CHECK);
     button.setText(label.text());
     GridData data = new GridData(SWT.FILL, SWT.CENTER, true, false, 2, 1);
     data.horizontalIndent = 16;

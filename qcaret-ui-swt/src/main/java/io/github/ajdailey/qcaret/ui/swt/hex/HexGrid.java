@@ -4,9 +4,9 @@ import io.github.ajdailey.qcaret.core.hex.HexRows;
 
 /**
  * Cell geometry of a hex view: a header row, then one row per {@link HexRows} row, each {@link
- * #lineHeight} high. Column {@code c} starts at {@code PAD + round(c * advance)}, so every cell
- * sits at its own x and a fractional advance does not accumulate across a row. Immutable and free
- * of SWT types.
+ * #lineHeight} high. Column {@code c} starts at {@code PAD + round(c * advance) - left}, where
+ * {@code left} is the horizontal scroll in pixels, so every cell sits at its own x and a fractional
+ * advance does not accumulate across a row. Immutable and free of SWT types.
  */
 final class HexGrid {
   /** Pixels left of the offset column and right of the text column. */
@@ -15,18 +15,38 @@ final class HexGrid {
   private final HexRows rows;
   private final double advance;
   private final int lineHeight;
+  private final int left;
 
   /**
-   * Creates the geometry.
+   * Creates the geometry, not scrolled.
    *
    * @param rows the layout
    * @param advance pixels per column, above 0
    * @param lineHeight pixels per row
    */
   HexGrid(HexRows rows, double advance, int lineHeight) {
+    this(rows, advance, lineHeight, 0);
+  }
+
+  private HexGrid(HexRows rows, double advance, int lineHeight, int left) {
     this.rows = rows;
     this.advance = Math.max(0.5, advance);
     this.lineHeight = Math.max(1, lineHeight);
+    this.left = left;
+  }
+
+  /**
+   * Returns the same geometry scrolled to a horizontal position.
+   *
+   * @param pixels the pixels of the row left of the canvas
+   * @return the geometry
+   */
+  HexGrid scrolled(int pixels) {
+    return pixels == left ? this : new HexGrid(rows, advance, lineHeight, pixels);
+  }
+
+  int left() {
+    return left;
   }
 
   HexRows rows() {
@@ -41,15 +61,15 @@ final class HexGrid {
    * Returns a column's left edge.
    *
    * @param column a column of {@link HexRows}
-   * @return {@code PAD + round(column * advance)}
+   * @return {@code PAD + round(column * advance) - left}
    */
   int x(int column) {
-    return PAD + (int) Math.round(column * advance);
+    return PAD + (int) Math.round(column * advance) - left;
   }
 
   /** Returns the pixel width a full row needs. */
   int rowWidth() {
-    return x(rows.columns()) + PAD;
+    return x(rows.columns()) + left + PAD;
   }
 
   /**
@@ -97,14 +117,14 @@ final class HexGrid {
    */
   boolean inTextColumn(int x) {
     int hexEnd = rows.hexColumn(rows.bytesPerRow() - 1) + 2;
-    return 2 * (x - PAD) >= Math.round((hexEnd + rows.textColumn(0)) * advance);
+    return 2 * (x + left - PAD) >= Math.round((hexEnd + rows.textColumn(0)) * advance);
   }
 
   /** Returns the index in its row of the byte whose cell an x falls in. */
   private int indexAt(int x) {
     int last = rows.bytesPerRow() - 1;
     if (inTextColumn(x)) {
-      int column = (int) Math.floor((x - PAD) / advance) - rows.textColumn(0);
+      int column = (int) Math.floor((x + left - PAD) / advance) - rows.textColumn(0);
       return Math.max(0, Math.min(last, column));
     }
     int index = 0;

@@ -22,8 +22,9 @@ import org.eclipse.swt.widgets.Shell;
  * under the other side of {@link SwtThemeService#nativeDark}. One turn creates the new window,
  * hidden; each later turn builds one tab's views in it ({@link StagedTabs}), while the old window
  * stays shown and takes all input. The last turn swaps: it carries the bounds, maximized, full
- * screen and minimized state, the dock weights, the Workspace Browser's expanded folders, the
- * results tree's expanded groups and selected row, the slot's pushed state, the tabs ({@link
+ * screen and minimized state, the dock weights, the Workspace Browser's expanded folders and the
+ * text in its path and filter fields, the results tree's expanded groups and selected row, the
+ * slot's pushed state, the tabs ({@link
  * io.github.ajdailey.qcaret.app.controller.DocumentController#rebindViews}) and the active window,
  * opens the new shell and hides the old one, which the next turn disposes, so the event loop always
  * holds an open shell. Other windows the old shell owns close with it, which cancels a running
@@ -365,6 +366,9 @@ public final class WindowViews implements WindowRebuild {
     next.setResultsWeights(results);
     for (WorkspaceNode directory : expanded) {
       next.expandWorkspace(directory);
+    }
+    if (next.workspaceDock() != null && old.workspaceDock() != null) {
+      next.workspaceDock().bar().takeFields(old.workspaceDock().bar());
     }
     next.resultsDock().takeState(old.resultsDock());
     e.controller.documents().rebindViews(tabs);

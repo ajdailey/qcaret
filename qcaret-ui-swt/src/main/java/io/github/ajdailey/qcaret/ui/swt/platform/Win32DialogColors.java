@@ -1,5 +1,6 @@
 package io.github.ajdailey.qcaret.ui.swt.platform;
 
+import java.util.function.BooleanSupplier;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.StyledText;
 import org.eclipse.swt.graphics.Color;
@@ -36,10 +37,8 @@ import org.eclipse.swt.widgets.Tree;
  *
  * <p>A single-line {@link Text}'s hint draws {@code #6d6d6d} when read-only (SWT draws it in {@code
  * COLOR_GRAYTEXT}) and {@code #575757} when editable, 2.74:1 and 1.96:1 on {@link #FIELD} (measured
- * on {@code windows-2025}); {@link Win32EmptyField} draws it in {@link #HINT} over that.
- *
- * <p>{@link #check} creates a box under the native setting, so under the dark one its box draws
- * dark in a dialog and in the dark main window alike. Confined to the UI thread.
+ * on {@code windows-2025}); {@link Win32EmptyField} draws it in {@link #HINT} over that. Confined
+ * to the UI thread.
  */
 final class Win32DialogColors implements DialogColors {
   static final Win32DialogColors INSTANCE = new Win32DialogColors();
@@ -64,6 +63,15 @@ final class Win32DialogColors implements DialogColors {
 
   /** Hint text of an empty single-line field: 5.0 contrast on {@link #FIELD}. */
   static final Color HINT = new Color(0x9a, 0x9a, 0x9a);
+
+  /** A colored dialog shows only under the dark native setting. */
+  private static final BooleanSupplier ALWAYS =
+      new BooleanSupplier() {
+        @Override
+        public boolean getAsBoolean() {
+          return true;
+        }
+      };
 
   private static final Win32EmptyField.Ink DIALOG_INK =
       new Win32EmptyField.Ink() {
@@ -144,11 +152,6 @@ final class Win32DialogColors implements DialogColors {
   }
 
   @Override
-  public Button check(Composite parent) {
-    return new Button(parent, SWT.CHECK);
-  }
-
-  @Override
   public void gridLines(Table table) {
     if (colored(table)) {
       Win32GridLines.draw(table, GRID);
@@ -203,6 +206,9 @@ final class Win32DialogColors implements DialogColors {
     }
     if (control instanceof Text text) {
       Win32EmptyField.draw(text, DIALOG_INK);
+    }
+    if (control instanceof Table || control instanceof Tree) {
+      Win32UnfocusedSelection.draw((Composite) control, ALWAYS);
     }
     if (control instanceof Table table) {
       table.setHeaderBackground(FIELD);

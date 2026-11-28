@@ -13,6 +13,7 @@ import io.github.ajdailey.qcaret.app.editor.DisplayProjection;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.theme.Palette;
 import io.github.ajdailey.qcaret.app.theme.PaletteListener;
+import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.app.view.BinaryChoice;
 import io.github.ajdailey.qcaret.app.view.BookmarksInput;
 import io.github.ajdailey.qcaret.app.view.BusyCounter;
@@ -1771,6 +1772,9 @@ public final class MainWindow implements MainView {
   /** Shows the window, then runs {@link WindowPlacement#afterOpen}. */
   public void open() {
     boolean maximized = shell.getMaximized();
+    if (findBar != null) {
+      MainWindowMinimum.apply(shell, toolbarRow.more(), findBar.control(), statusBar, notice);
+    }
     shell.open();
     WindowPlacement.PLATFORM.afterOpen(shell, maximized);
   }
@@ -2009,6 +2013,11 @@ public final class MainWindow implements MainView {
   @Override
   public void showPreferences(PreferencesInput input) {
     dialogs.showPreferences(input);
+  }
+
+  @Override
+  public void showThemeMode(ThemeMode mode) {
+    dialogs.showThemeMode(mode);
   }
 
   /**

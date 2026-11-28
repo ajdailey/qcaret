@@ -3,6 +3,7 @@ package io.github.ajdailey.qcaret.ui.swt;
 import io.github.ajdailey.qcaret.app.command.Keymap;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.theme.Palette;
+import io.github.ajdailey.qcaret.app.theme.ThemeMode;
 import io.github.ajdailey.qcaret.app.view.ChangeChoice;
 import io.github.ajdailey.qcaret.app.view.ClipboardService;
 import io.github.ajdailey.qcaret.app.view.Comparison;
@@ -162,6 +163,17 @@ final class WindowDialogs {
     WindowViews.holdWhile(preferencesDialog.shell(), WindowViews.WHILE_OPEN);
     preferencesDialog.open();
     rememberSize(preferencesDialog.shell(), "preferences");
+  }
+
+  /**
+   * Shows a changed theme setting in an open Preferences dialog.
+   *
+   * @param mode the theme setting
+   */
+  void showThemeMode(ThemeMode mode) {
+    if (preferencesDialog != null && !preferencesDialog.shell().isDisposed()) {
+      preferencesDialog.showThemeMode(mode);
+    }
   }
 
   /**

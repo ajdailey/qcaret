@@ -112,6 +112,11 @@ shows its own color only while focus is in the folder.
 - OK and Apply pass the fields to the controller; a refused field shows its
   message above the buttons, selects its tab and keeps the dialog open.
 - Restore Defaults fills every tab and applies nothing until OK or Apply.
+- A theme setting changed elsewhere, such as View > Theme, reaches the open
+  dialog through `MainView.showThemeMode`, which selects it in the Theme list
+  and leaves the other fields' edits. A win32 theme rebuild waits while the
+  dialog is open ([theme rebuild](main-window.md#theme-rebuild)), so it stays
+  open on every platform.
 - Clear History on the Search and Workspace tab asks through
   `ClearHistoryDialog`, then clears the saved histories, HyperSearch's last run
   and the session's retained searches at once; Cancel on the dialog does not
@@ -123,8 +128,8 @@ shows its own color only while focus is in the folder.
   and names it; Remove and Default Keys edit the selected command,
   and Restore All Defaults drops every override. The tab's mnemonics differ
   from each other and from the dialog buttons'.
-- `setKeymap` rebuilds the menu bar and hands the keymap to every `EditorPane`
-  and an open `ShortcutsWindow`.
+- `setKeymap` changes the menu bar's keys in place and hands the keymap to
+  every `EditorPane` and an open `ShortcutsWindow`.
 
 ## Recovery dialog
 
@@ -170,13 +175,14 @@ the dialog cancels a running match.
   the icons' `ToolIcons` owner; `MainWindow` re-inks it after a theme change
   and when the dock shows.
 - `BrowseBar` holds the first four icons, the path field, the filter field
-  and the Hidden check box (`SwtThemeService.check`). The path field shows the
+  and the Hidden check box. The path field shows the
   shown folder; its tool tip says whether that is the workspace folder, and
   Workspace is enabled only when it is not. Both fields ask for no width of
   their own, so a long path never widens the dock or pushes Hidden out. Enter
   in a field passes its text to `WorkspaceBrowseInput`; each
-  `workspaceChanged(null)` sets the fields, the check box and Workspace's
-  enablement from it. Favorites builds its pop-up menu at each opening from
+  `workspaceChanged(null)` sets the check box and Workspace's enablement from
+  it, and sets a field only when the model's folder or filter changed, so a
+  refresh or a theme rebuild keeps typed text. Favorites builds its pop-up menu at each opening from
   `favorites()`.
 - On win32 the window's `ChromeColors` color the tree, its header and the two
   fields, which draw light under the dark theme: while `ThemeController.dark`

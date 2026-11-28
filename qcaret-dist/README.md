@@ -165,7 +165,7 @@ then all users (the current user for `/S`).
   and which is empty when the profile variables name another user's profile
   (measured on QLogg's CI standard-user run). The type page refuses For me only
   with a message; silent setup exits 3 and writes the reason to standard
-  error.
+  error. `/D` does not lift the refusal.
 - When `lib\qcaret.jar` exists, setup deletes `lib\` and `runtime\` before
   copying, so an upgrade leaves no file of the older version. Settings,
   `logs\`, `portable.txt` and `qcaret.conf` in a portable folder stay.

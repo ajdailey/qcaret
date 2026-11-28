@@ -47,6 +47,7 @@ import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
+import org.eclipse.swt.widgets.Menu;
 import org.eclipse.swt.widgets.MenuItem;
 import org.eclipse.swt.widgets.TabFolder;
 import org.junit.jupiter.api.AfterEach;
@@ -305,9 +306,11 @@ class PreferencesSurfaceTest {
     dialog.record(free);
     dialog.addCaptured();
     assertEquals("", dialog.keyMessage().getText());
+    Menu bar = window.shell().getMenuBar();
+    MenuItem item = window.menuBar().item(CommandId.COMPARE_DOCUMENTS);
     assertTrue(dialog.apply());
     assertEquals(free, controller.keymap().accelerator(CommandId.COMPARE_DOCUMENTS));
-    MenuItem item = window.menuBar().item(CommandId.COMPARE_DOCUMENTS);
+    assertSame(item, window.menuBar().item(CommandId.COMPARE_DOCUMENTS));
     assertEquals(SwtKeys.accelerator(free), item.getAccelerator());
     assertTrue(
         item.getText().contains(free.text(PlatformTraits.PLATFORM.macKeys())), item.getText());
@@ -316,7 +319,22 @@ class PreferencesSurfaceTest {
     dialog.removeSelected();
     assertTrue(dialog.apply());
     assertNull(controller.keymap().accelerator(CommandId.COMPARE_DOCUMENTS));
-    dialog.shell().dispose();
+    assertEquals(0, item.getAccelerator());
+    assertEquals(CommandId.COMPARE_DOCUMENTS.label(), item.getText());
+    // A key change keeps the bar; on GTK 4 a replaced bar crashed the JVM when a dialog closed.
+    assertSame(bar, window.shell().getMenuBar());
+    final PreferencesDialog closed = dialog;
+    closed.shell().close();
+    assertTrue(
+        EventLoop.runUntil(
+            display,
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                return closed.shell().isDisposed() && !display.readAndDispatch();
+              }
+            },
+            BOUND));
   }
 
   @Test
@@ -453,6 +471,21 @@ class PreferencesSurfaceTest {
     dialog.restoreDefaults();
     assertTrue(dialog.apply());
     assertSame(Palette.LIGHT, window.palette());
+    dialog.shell().dispose();
+  }
+
+  /** G2: an open dialog kept showing Theme: Dark after View > Theme > Light. */
+  @Test
+  void anOpenDialogShowsAThemeChosenFromTheMenuAndKeepsItsEdits() {
+    PreferencesDialog dialog = dialog();
+    dialog.pollSeconds().setText("7");
+    controller.execute(CommandId.THEME_DARK);
+    assertEquals(ThemeMode.DARK.ordinal(), dialog.theme().getSelectionIndex());
+    controller.execute(CommandId.THEME_SYSTEM);
+    assertEquals(ThemeMode.SYSTEM.ordinal(), dialog.theme().getSelectionIndex());
+    controller.execute(CommandId.THEME_LIGHT);
+    assertEquals(ThemeMode.LIGHT.ordinal(), dialog.theme().getSelectionIndex());
+    assertEquals("7", dialog.pollSeconds().getText());
     dialog.shell().dispose();
   }
 

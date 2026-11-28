@@ -181,7 +181,7 @@ final class PreferencesDialog {
   }
 
   private static Button check(Composite page, UiText label) {
-    Button button = SwtThemeService.check(page);
+    Button button = new Button(page, SWT.CHECK);
     button.setText(label.text());
     button.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 2, 1));
     return button;
@@ -544,6 +544,19 @@ final class PreferencesDialog {
     }
     shell.layout(true, true);
     return problem == null;
+  }
+
+  /**
+   * Selects a theme setting changed outside the dialog; the other fields keep their edits.
+   *
+   * @param mode the theme setting
+   */
+  void showThemeMode(ThemeMode mode) {
+    for (int i = 0; i < THEMES.length; i++) {
+      if (THEMES[i] == mode) {
+        theme.select(i);
+      }
+    }
   }
 
   /** Shows a stroke in the key field. */
