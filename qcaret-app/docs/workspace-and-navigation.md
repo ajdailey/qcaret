@@ -33,6 +33,11 @@ The index and the browser leave out hidden entries and
   has no size.
 - Refresh lists every listed directory again, keeping the old rows until the
   new ones arrive, and rebuilds the index.
+- Activating a window lists its shown browser's directories again the same way,
+  without the index build or the other windows (`BrowserActivation`, from
+  `ApplicationController.windowActivated`). A directory whose read still runs
+  keeps it, so repeated activations run one read per directory. The browser
+  registers no folder watch.
 - Reveal Active File lists each directory down to the selected document's file,
   shows enough entries to hold it and selects it.
 - A drop on a window, from the browser or another program, goes to

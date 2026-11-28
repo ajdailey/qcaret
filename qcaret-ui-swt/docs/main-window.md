@@ -347,7 +347,11 @@ before then share that update (`StatusUpdates`). While an editor holds its
 redraws (`EditorView.holdRedraw`), updates wait for the release, which posts
 one. A macro run releases its view for one turn at each refresh
 (`qcaret-app/docs/macros.md`), so the status bar updates and paints with the
-editor there and once after the run, not once per turn. `Gui` calls `showStatusNow` after
+editor there and once after the run, not once per turn. An update that changes
+a field, and the macro status, lay out the bar and paint it and its fields
+before returning (`StatusUpdates.layout`): on win32 a label paints its new text
+when it is set, and the area a moved field uncovers keeps the old text until the
+bar paints, which a run's turns delay. `Gui` calls `showStatusNow` after
 `startSession`, so the untitled document's title does not wait for the startup
 events to drain.
 

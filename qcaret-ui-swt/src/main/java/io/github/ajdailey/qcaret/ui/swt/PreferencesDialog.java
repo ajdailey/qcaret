@@ -5,6 +5,7 @@ import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.command.KeyStroke;
 import io.github.ajdailey.qcaret.app.command.Keymap;
 import io.github.ajdailey.qcaret.app.command.MacroKeys;
+import io.github.ajdailey.qcaret.app.command.ShortcutAdd;
 import io.github.ajdailey.qcaret.app.command.ShortcutOverrides;
 import io.github.ajdailey.qcaret.app.i18n.UiText;
 import io.github.ajdailey.qcaret.app.theme.EditorSchemes;
@@ -575,30 +576,17 @@ final class PreferencesDialog {
     fill();
   }
 
-  /** Adds the recorded key to the selected command unless it types or another command holds it. */
+  /** Adds the recorded key to the selected command, or shows why nothing changes. */
   void addCaptured() {
     CommandId command = selected();
-    if (command == null || captured == null) {
-      return;
-    }
-    String keyText = captured.text(PlatformTraits.PLATFORM.macKeys());
-    Keymap current = working();
-    CommandId holder = current.holder(captured, command);
-    String macro = current.macros().holder(captured, null);
-    if (captured.types() || holder != null || macro != null) {
-      keyMessage.setText(
-          captured.types()
-              ? UiText.PREFERENCES_KEY_TYPES.format(keyText)
-              : UiText.PREFERENCES_KEY_TAKEN.format(
-                  keyText, holder != null ? holder.title() : UiText.MACRO_ROW.format(macro)));
+    ShortcutAdd add =
+        ShortcutAdd.of(command, captured, working(), PlatformTraits.PLATFORM.macKeys());
+    if (add.strokes() == null) {
+      keyMessage.setText(add.message());
       keyMessage.getParent().layout(true);
       return;
     }
-    List<KeyStroke> list = new ArrayList<KeyStroke>(current.strokes(command));
-    if (!list.contains(captured)) {
-      list.add(captured);
-      setOverrides(overrides.with(command, list));
-    }
+    setOverrides(overrides.with(command, add.strokes()));
     captured = null;
     capture.setText("");
   }

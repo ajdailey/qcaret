@@ -219,13 +219,16 @@ class DocumentTest {
     doc.undo(null);
     doc.undo(null);
     assertEquals("abc", doc.text().toString());
-    assertEquals(6, doc.revision());
+    assertEquals(5, doc.revision());
+    assertEquals(5, recorder.changes.size(), "the group undoes as one change");
     assertEquals(DocumentChange.Cause.UNDO, recorder.changes.get(4).cause());
+    assertEquals(2, recorder.changes.get(4).edits().size());
     doc.redo(null);
     assertEquals("AbC", doc.text().toString());
+    assertEquals(6, recorder.changes.size(), "the group redoes as one change");
     doc.apply(EditBatch.replace(0, 0, "z"));
     assertFalse(doc.canRedo());
-    assertEquals(9, doc.revision());
+    assertEquals(7, doc.revision());
   }
 
   @Test

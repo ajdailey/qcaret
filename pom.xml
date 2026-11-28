@@ -93,6 +93,9 @@
         <qcaret.excludedGroups></qcaret.excludedGroups>
         <!-- Extra test JVM options; the macos profile sets them. -->
         <qcaret.test.jvmArgs></qcaret.test.jvmArgs>
+        <!-- The test JVM's user.home under target; the gtk4 profile gives
+             GTK 4 its own, since SWT caches shell trims per home. -->
+        <qcaret.test.home>test-home</qcaret.test.home>
         <qcaret.config.dir>${maven.multiModuleProjectDirectory}/config</qcaret.config.dir>
     </properties>
 
@@ -456,7 +459,7 @@
                         <excludedGroups>${qcaret.excludedGroups}</excludedGroups>
                         <!-- SWT writes ~/.swt/trims.prefs; keep it out of the
                              user's home. -->
-                        <argLine>-Duser.home=${project.build.directory}/test-home --enable-native-access=ALL-UNNAMED ${qcaret.test.jvmArgs}</argLine>
+                        <argLine>-Duser.home=${project.build.directory}/${qcaret.test.home} --enable-native-access=ALL-UNNAMED ${qcaret.test.jvmArgs}</argLine>
                         <!-- GTK prefers Wayland when WAYLAND_DISPLAY is set, which
                              puts test windows on the desktop session instead of
                              the X server DISPLAY names (Xvfb). -->
@@ -663,6 +666,21 @@
             </activation>
             <properties>
                 <qcaret.test.jvmArgs>-XstartOnFirstThread</qcaret.test.jvmArgs>
+            </properties>
+        </profile>
+        <!-- SWT_GTK4=1 runs GTK 4. SWT keeps shell trims in
+             ~/.swt/trims.prefs, and a GTK 3 run's values misplace GTK 4
+             shells, so GTK 4 tests get their own user.home. -->
+        <profile>
+            <id>gtk4</id>
+            <activation>
+                <property>
+                    <name>env.SWT_GTK4</name>
+                    <value>1</value>
+                </property>
+            </activation>
+            <properties>
+                <qcaret.test.home>test-home-gtk4</qcaret.test.home>
             </properties>
         </profile>
 

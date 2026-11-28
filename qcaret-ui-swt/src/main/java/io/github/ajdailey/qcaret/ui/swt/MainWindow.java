@@ -1123,7 +1123,7 @@ public final class MainWindow implements MainView {
     changed |= set(readOnly, fields.readOnly());
     changed |= set(preview, fields.preview());
     if (changed) {
-      statusBar.layout(true);
+      StatusUpdates.layout(statusBar);
     }
   }
 

@@ -125,8 +125,10 @@ shows its own color only while focus is in the folder.
 - The Keys tab lists every command, then each saved macro under Macros; the key
   field records one stroke and Clear empties it. A macro's row has no command,
   so the key buttons leave it alone and the tab names Manage Macros. Add
-  refuses a stroke that types or that another command or a saved macro holds
-  and names it; Remove and Default Keys edit the selected command,
+  (`ShortcutAdd` in qcaret-app) changes nothing and shows why when no command
+  is selected, the key field is empty, the stroke types, another command or a
+  saved macro holds it (named), the command already has it, or the command has
+  `ShortcutOverrides.MAX_PER_COMMAND` keys; Remove and Default Keys edit the selected command,
   and Restore All Defaults drops every override. The tab's mnemonics differ
   from each other and from the dialog buttons'.
 - `setKeymap` changes the menu bar's keys in place and hands the keymap to

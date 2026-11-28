@@ -527,6 +527,14 @@ public enum UiText {
   PREFERENCES_KEY_TYPES,
   /** A row with keys set by the user: the command's name. */
   PREFERENCES_KEY_CHANGED,
+  /** Add refused: no command selected. */
+  PREFERENCES_KEY_NO_COMMAND,
+  /** Add refused: the key field is empty. */
+  PREFERENCES_KEY_NO_KEY,
+  /** Add refused: the key and the selected command, which already has it. */
+  PREFERENCES_KEY_ALREADY,
+  /** Add refused: the command's name and the most keys a command keeps. */
+  PREFERENCES_KEY_FULL,
   /** Title of the prompt before the search histories are cleared. */
   PREFERENCES_CLEAR_HISTORY_TITLE,
   /** Message of the prompt before the search histories are cleared. */

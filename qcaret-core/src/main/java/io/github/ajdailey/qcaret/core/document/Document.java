@@ -441,8 +441,8 @@ public final class Document {
   }
 
   /**
-   * Opens a group: every batch until the matching {@link #endGroup} is one undo step. Groups nest;
-   * the outermost one counts.
+   * Opens a group: every batch until the matching {@link #endGroup} is one undo step, which undo
+   * and redo apply as one change. Groups nest; the outermost one counts.
    *
    * @param origin the selection model whose selections the step records, or null
    */
@@ -458,7 +458,10 @@ public final class Document {
     }
   }
 
-  /** Closes a group; the outermost close records the step when the group applied anything. */
+  /**
+   * Closes a group; the outermost close records the step when the group applied anything, its
+   * batches composed into one ({@link ChangeComposer}).
+   */
   public void endGroup() {
     checkThread();
     if (groupDepth == 0) {
@@ -468,6 +471,12 @@ public final class Document {
       UndoHistory.Step step = group;
       group = null;
       if (!step.batches.isEmpty()) {
+        if (step.batches.size() > 1) {
+          List<Change> composed = ChangeComposer.compose(step.batches);
+          step.batches.clear();
+          step.bytes = 0;
+          step.add(composed);
+        }
         step.stateAfter = state;
         step.after = groupOrigin != null ? groupOrigin.selections() : null;
         history.push(step);
@@ -503,7 +512,7 @@ public final class Document {
   }
 
   /**
-   * Undoes the newest step: one change per batch in the step, newest first.
+   * Undoes the newest step as one change.
    *
    * @param target the selection model that receives the step's selections from before it, or null
    * @return false when there was nothing to undo
@@ -534,7 +543,7 @@ public final class Document {
   }
 
   /**
-   * Redoes the step undone last: one change per batch in the step, oldest first.
+   * Redoes the step undone last as one change.
    *
    * @param target the selection model that receives the step's selections from after it, or null
    * @return false when there was nothing to redo

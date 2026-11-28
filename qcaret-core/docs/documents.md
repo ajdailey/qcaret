@@ -72,7 +72,7 @@ shows, since the batch's offsets would include it, so callers run
 
 | Rule | Behavior |
 |---|---|
-| Step | One batch, or every batch between `beginGroup` and the outermost `endGroup` |
+| Step | One batch, or every batch between `beginGroup` and the outermost `endGroup`, composed into one batch when the group closes (`ChangeComposer`), so undo and redo apply a group as one change: one revision, one `DocumentChange`, one view update. Edits that overlap or touch across batches merge |
 | Coalescing | A `TYPING`, `BACKSPACE` or `DELETE` batch merges into the previous step of its kind when it continues it at every caret, within 1 s, with no caret move (`SelectionModel.set`), command, undo, redo or save in between. Typed whitespace after a non-whitespace char starts a new step |
 | Multi-caret | A batch is one step whatever its replacement count |
 | Redo | Discarded by any new step |

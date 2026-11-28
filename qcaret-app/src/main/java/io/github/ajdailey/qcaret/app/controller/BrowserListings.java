@@ -135,6 +135,17 @@ final class BrowserListings {
     return new ArrayList<Path>(listings.keySet());
   }
 
+  /** Returns the listed directories with no read running. */
+  List<Path> idleDirectories() {
+    List<Path> idle = new ArrayList<Path>();
+    for (Map.Entry<Path, Listing> entry : listings.entrySet()) {
+      if (entry.getValue().reading == null) {
+        idle.add(entry.getKey());
+      }
+    }
+    return idle;
+  }
+
   /**
    * Lists directories again where this browser lists them.
    *

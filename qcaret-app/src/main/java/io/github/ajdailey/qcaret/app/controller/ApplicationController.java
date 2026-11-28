@@ -76,6 +76,7 @@ public final class ApplicationController {
   private final HelpController help;
   private final FindController find;
   private final WorkspaceController workspace;
+  private final BrowserActivation browserActivation;
   private final SearchController search;
   private final ReplaceController replace;
   private final BookmarkList bookmarkList;
@@ -213,6 +214,7 @@ public final class ApplicationController {
             HomeFolder.find(),
             NameFilter.PLATFORM_IGNORES_CASE));
     workspace.setPeers(set.browsers());
+    this.browserActivation = new BrowserActivation(workspace);
     this.replace =
         new ReplaceController(
             documents,
@@ -783,13 +785,14 @@ public final class ApplicationController {
   }
 
   /**
-   * Makes this the window handed files go to and checks its files for changes by other programs;
-   * the window was activated.
+   * Makes this the window handed files go to, checks its files for changes by other programs and
+   * lists its Workspace Browser again; the window was activated.
    */
   public void windowActivated() {
     if (!quitting) {
       set.activated(this);
       documents.checkFiles();
+      browserActivation.activated();
     }
   }
 

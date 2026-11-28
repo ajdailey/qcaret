@@ -1098,7 +1098,8 @@ dragging it onto the editor, the tabs or anywhere on a QCaret window; a drag to
 another program copies the file. Hover over a row for its full path, size and
 modified date and time. The icons above the tree show their names when you
 hover over them. Tab reaches each icon and Space runs it. Refresh lists the folder
-again, Reveal Active File selects the current document's file, and Hide Browser
+again; switching to a QCaret window also lists it again,
+so files other programs created or removed show. Reveal Active File selects the current document's file, and Hide Browser
 hides the browser. A row's menu offers Open, Open in Default Application, Open
 in Hex Viewer, New File, New Folder, Rename, Delete, Copy Path, Search in Folder and Set as
 Workspace Folder; right-click empty space in the browser to act on the shown
@@ -1390,8 +1391,11 @@ so the keys repeat.
 Restore Defaults fills every tab with the default values; nothing changes until
 OK or Apply. A theme chosen from View > Theme while the dialog is open shows in
 its Theme field. Add refuses a key that types text or that another command or a
-saved macro holds, and names it; a changed command reads "(changed)". Restore All
-Defaults drops every key change on OK or Apply. Clear History removes the
+saved macro holds, and names it; with no command selected, an empty Key field or
+a key the command already has, or a command that has eight keys, it changes
+nothing and says why. A changed
+command reads "(changed)". Restore All Defaults drops every key change on OK or
+Apply. Clear History removes the
 saved search texts, replacements, directories
 and masks, and the searches kept in the session. When another QCaret window owns
 the session, its saved searches stay and a notice says so: close that window,

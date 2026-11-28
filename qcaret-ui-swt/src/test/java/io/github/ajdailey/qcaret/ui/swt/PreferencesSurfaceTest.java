@@ -296,6 +296,8 @@ class PreferencesSurfaceTest {
     PreferencesDialog dialog = dialog();
     dialog.folder().select(PreferencesForm.Group.KEYS.ordinal());
     dialog.select(CommandId.COMPARE_DOCUMENTS);
+    dialog.addCaptured();
+    assertEquals(UiText.PREFERENCES_KEY_NO_KEY.text(), dialog.keyMessage().getText());
     dialog.record(new KeyStroke(0, 'k'));
     dialog.addCaptured();
     assertTrue(dialog.keyMessage().getText().contains("types text"));
@@ -306,6 +308,12 @@ class PreferencesSurfaceTest {
     dialog.record(free);
     dialog.addCaptured();
     assertEquals("", dialog.keyMessage().getText());
+    dialog.record(free);
+    dialog.addCaptured();
+    assertEquals(
+        UiText.PREFERENCES_KEY_ALREADY.format(
+            free.text(PlatformTraits.PLATFORM.macKeys()), CommandId.COMPARE_DOCUMENTS.title()),
+        dialog.keyMessage().getText());
     Menu bar = window.shell().getMenuBar();
     MenuItem item = window.menuBar().item(CommandId.COMPARE_DOCUMENTS);
     assertTrue(dialog.apply());

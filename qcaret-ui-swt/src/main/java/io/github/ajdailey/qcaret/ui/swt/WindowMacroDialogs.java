@@ -54,7 +54,7 @@ final class WindowMacroDialogs {
     status.setText(text);
     status.setVisible(shown);
     ((GridData) status.getLayoutData()).exclude = !shown;
-    status.getParent().layout(true);
+    StatusUpdates.layout(status.getParent());
   }
 
   void askRunMacro(

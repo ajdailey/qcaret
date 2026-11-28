@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.view.MarkdownViewMode;
@@ -17,7 +18,9 @@ import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.widgets.Composite;
+import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Event;
+import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.Menu;
 import org.eclipse.swt.widgets.MenuItem;
 import org.eclipse.swt.widgets.ToolItem;
@@ -238,6 +241,109 @@ class ToolbarOverflowSurfaceTest {
     w.controller.documents().select(markdown);
     w.flush();
     assertEquals(plainY, w.window.tabs().toDisplay(0, 0).y, "tab strip on the Markdown tab again");
+  }
+
+  /**
+   * A click on More shows its menu with the hidden buttons: a posted click on GTK and win32, and
+   * the button's Selection on cocoa, where posted pointer events end the test JVM. The click waits
+   * until More has its place: GTK 4 reports a newly shown toolbar at {0, 0, 0, 0} for a while, and
+   * a click at its mapped center landed on the main toolbar. It skips where no control lies under
+   * the posted pointer, as on the windows-aarch64 runner at every point measured. The menu closes
+   * from its Show event.
+   */
+  @Test
+  void aClickOnMoreShowsTheHiddenButtons() throws Exception {
+    w.open("notes.txt", "plain\n", false);
+    width(260);
+    final int hidden = row.hidden().size();
+    final List<Integer> shown = new ArrayList<Integer>();
+    final List<String> selected = new ArrayList<String>();
+    Listener show =
+        new Listener() {
+          @Override
+          public void handleEvent(Event event) {
+            if (event.widget instanceof Menu menu && (menu.getStyle() & SWT.POP_UP) != 0) {
+              shown.add(menu.getItemCount());
+              menu.setVisible(false);
+            }
+          }
+        };
+    row.more()
+        .addListener(
+            SWT.Selection,
+            new Listener() {
+              @Override
+              public void handleEvent(Event event) {
+                selected.add("selected");
+              }
+            });
+    w.display.addFilter(SWT.Show, show);
+    try {
+      final ToolItem more = row.more();
+      String under = "";
+      if (RunningPlatform.COCOA) {
+        more.notifyListeners(SWT.Selection, new Event());
+      } else {
+        w.await(
+            new BooleanSupplier() {
+              @Override
+              public boolean getAsBoolean() {
+                return placed(more);
+              }
+            },
+            "More placed: " + more.getParent().getBounds() + " " + more.getBounds());
+        w.window.shell().forceActive();
+        w.flush();
+        PostedInput.click(w.display, center(more));
+        Control cursor = w.display.getCursorControl();
+        assumeTrue(cursor != null, "the posted pointer reaches no control");
+        under = cursor.toString();
+      }
+      final String diagnosis =
+          "More "
+              + more.getParent().getBounds()
+              + " at "
+              + center(more)
+              + ", pointer "
+              + w.display.getCursorLocation()
+              + " under "
+              + under
+              + ", shell "
+              + w.window.shell().getBounds()
+              + " active "
+              + (w.display.getActiveShell() == w.window.shell())
+              + ", monitor "
+              + w.window.shell().getMonitor().getBounds()
+              + " zoom "
+              + w.window.shell().getMonitor().getZoom();
+      w.await(
+          new BooleanSupplier() {
+            @Override
+            public boolean getAsBoolean() {
+              return !shown.isEmpty();
+            }
+          },
+          "More menu shown; selected " + selected + ", " + diagnosis);
+      assertEquals(List.of(hidden), shown, diagnosis);
+    } finally {
+      w.display.removeFilter(SWT.Show, show);
+    }
+  }
+
+  /** Returns whether More has its place in the row and maps its points from there. */
+  private boolean placed(ToolItem more) {
+    Rectangle button = more.getParent().getBounds();
+    return button.x > 0
+        && more.getBounds().width > 0
+        && more.getParent().toDisplay(0, 0).equals(row.row().toDisplay(button.x, button.y));
+  }
+
+  /** Returns the center of More in display points, mapped from the row. */
+  private Point center(ToolItem more) {
+    Rectangle button = more.getParent().getBounds();
+    Rectangle bounds = more.getBounds();
+    return row.row()
+        .toDisplay(button.x + bounds.x + bounds.width / 2, button.y + bounds.y + bounds.height / 2);
   }
 
   @Test

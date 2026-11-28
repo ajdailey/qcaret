@@ -138,7 +138,9 @@ scripts/container.sh env SWT_GTK4=1 xvfb-run -a ./mvnw -B verify -pl qcaret-ui-s
   `qcaret-maven-repo`; the JDK archives and tools `dist.xml` downloads live in
   `qcaret-build-tools`.
 - The `env SWT_GTK4=1` line runs CI's `test-gtk4` job on the experimental
-  GTK 4 backend.
+  GTK 4 backend. Its tests use `target/test-home-gtk4` as `user.home`, apart
+  from GTK 3's `target/test-home`: SWT caches shell trims there, and GTK 3's
+  values misplace GTK 4 shells.
 - On Linux the container runs as the calling user, so files in `dist/` and
   `target/` belong to that user.
 - The service is `linux/amd64`, because packaging runs launch4j's x86-64

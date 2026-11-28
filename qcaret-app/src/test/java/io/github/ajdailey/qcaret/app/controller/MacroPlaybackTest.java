@@ -13,7 +13,10 @@ import io.github.ajdailey.qcaret.app.macro.MacroFormat;
 import io.github.ajdailey.qcaret.app.macro.MacroStep;
 import io.github.ajdailey.qcaret.app.view.SequenceForm;
 import io.github.ajdailey.qcaret.app.view.UnsavedChoice;
+import io.github.ajdailey.qcaret.core.document.DocumentChange;
+import io.github.ajdailey.qcaret.core.document.DocumentListener;
 import io.github.ajdailey.qcaret.core.document.SelectionSet;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -379,6 +382,48 @@ class MacroPlaybackTest {
         run.notice());
     editor.execute(CommandId.UNDO);
     assertEquals("a\nb\nc\nd\n", MacroTesting.text(editor));
+  }
+
+  /**
+   * A run of many iterations undoes and redoes as one document change, so the views update once:
+   * undoing a 15,471-iteration run edit by edit held the UI thread for 20 s on Windows.
+   */
+  @Test
+  void aLongRunUndoesAndRedoesAsOneChange() throws Exception {
+    StringBuilder text = new StringBuilder();
+    for (int i = 0; i < 400; i++) {
+      text.append("line ").append(i).append('\n');
+    }
+    EditorController editor = t.open(text.toString());
+    MacroPlayer run =
+        t.play(
+            macro(
+                new MacroStep.Command(CommandId.LINE_END),
+                new MacroStep.Typed(" // ok"),
+                new MacroStep.Command(CommandId.CARET_DOWN)),
+            400);
+    assertEquals(400, run.iterations());
+    String ran = MacroTesting.text(editor);
+    final List<DocumentChange> changes = new ArrayList<DocumentChange>();
+    editor
+        .document()
+        .addListener(
+            new DocumentListener() {
+              @Override
+              public void textChanged(DocumentChange change) {
+                changes.add(change);
+              }
+
+              @Override
+              public void dirtyChanged(boolean dirty) {}
+            });
+    editor.execute(CommandId.UNDO);
+    assertEquals(text.toString(), MacroTesting.text(editor));
+    assertEquals(1, changes.size());
+    assertEquals(400, changes.get(0).edits().size());
+    editor.execute(CommandId.REDO);
+    assertEquals(ran, MacroTesting.text(editor));
+    assertEquals(2, changes.size());
   }
 
   @Test

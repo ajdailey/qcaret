@@ -1,5 +1,6 @@
 package io.github.ajdailey.qcaret.bench;
 
+import io.github.ajdailey.qcaret.app.command.CommandId;
 import io.github.ajdailey.qcaret.app.controller.ApplicationController;
 import io.github.ajdailey.qcaret.app.controller.MacroBench;
 import io.github.ajdailey.qcaret.app.view.ManualUiDispatcher;
@@ -23,9 +24,10 @@ import java.util.function.BooleanSupplier;
  * Macro playback without a display: each {@link MacroBench.Workload} replayed over a generated
  * document of 256 KiB, 1 MiB and 4 MiB, {@value #COUNT} times and to the end, in a window over a
  * fake view with the bench thread as the UI thread. A {@link PlaybackTimer} times every UI task of
- * the run; the line per run gives the turns, the tasks that ran steps, against the 8 ms budget.
- * Arguments: workload names; none runs all. {@code -Dqcaret.bench.kib} (comma list) replaces the
- * sizes. Runs at the shipped launchers' heap as {@link StorageHarness} does.
+ * the run; the line per run gives the turns, the tasks that ran steps, against the 8 ms budget, and
+ * the wall time of one Undo and one Redo of the run. Arguments: workload names; none runs all.
+ * {@code -Dqcaret.bench.kib} (comma list) replaces the sizes. Runs at the shipped launchers' heap
+ * as {@link StorageHarness} does.
  */
 public final class MacroHarness {
   /** The counted runs' iterations. */
@@ -132,6 +134,13 @@ public final class MacroHarness {
       long wall = System.nanoTime() - start;
       timer.stop();
       PlaybackTimer.Summary summary = timer.summary();
+      manual.runPending();
+      long undoStart = System.nanoTime();
+      window.execute(CommandId.UNDO);
+      long undo = System.nanoTime() - undoStart;
+      long redoStart = System.nanoTime();
+      window.execute(CommandId.REDO);
+      long redo = System.nanoTime() - redoStart;
       synchronized (failures) {
         if (!failures.isEmpty()) {
           throw new IllegalStateException("worker failed", failures.get(0));
@@ -141,14 +150,17 @@ public final class MacroHarness {
         System.out.println(
             String.format(
                 Locale.ROOT,
-                "macro workload=%s kib=%d count=%s iterations=%d wall=%.1fms %s notice=\"%s\"",
+                "macro workload=%s kib=%d count=%s iterations=%d wall=%.1fms %s notice=\"%s\""
+                    + " undo=%.1fms redo=%.1fms",
                 workload,
                 kib,
                 count == 0 ? "end" : Integer.toString(count),
                 run.iterations(),
                 wall / 1e6,
                 summary,
-                run.notice()));
+                run.notice(),
+                undo / 1e6,
+                redo / 1e6));
       }
       return new Result(run.iterations(), run.notice(), summary);
     } finally {

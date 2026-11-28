@@ -57,7 +57,8 @@ a macro.
 - A macro without Undo or Redo steps runs as one undo step: a `Document` group
   opens before the first step and closes on every exit path, the window
   closing included. A macro with them runs without the group, since Undo cannot
-  run inside an open one.
+  run inside an open one. The group closes as one composed batch, so Undo and
+  Redo apply a run as one change and each view redraws once.
 - While a run is active, `EditorController` drops `type`, `execute`,
   `replaceFromView`, `preeditFromView`, the mouse selection calls and the
   completion choice for every view of the document, and the find bar's search,
