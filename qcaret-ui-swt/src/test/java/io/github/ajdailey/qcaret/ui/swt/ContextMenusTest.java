@@ -41,7 +41,6 @@ import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
-import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Menu;
 import org.eclipse.swt.widgets.MenuItem;
 import org.eclipse.swt.widgets.Table;
@@ -287,7 +286,7 @@ class ContextMenusTest {
   @Test
   void theLineEndingPopupChangesTheLineEnding() throws Exception {
     openFile("ending.txt", "one\ntwo\n");
-    final Label[] fields = window.encodingFields();
+    final StatusField[] fields = window.encodingFields();
     assertEquals(UiText.STATUS_LINE_ENDING_TIP.text(), fields[1].getToolTipText());
     click(fields[1]);
     Menu endings = window.statusMenus().lineEndingPopup();
@@ -316,7 +315,7 @@ class ContextMenusTest {
   @Test
   void theEncodingPopupReopensAndSavesWithAnEncoding() throws Exception {
     openFile("encoding.txt", "one\ntwo\n");
-    final Label[] fields = window.encodingFields();
+    final StatusField[] fields = window.encodingFields();
     assertEquals(UiText.STATUS_ENCODING_TIP.text(), fields[0].getToolTipText());
     await(
         new BooleanSupplier() {

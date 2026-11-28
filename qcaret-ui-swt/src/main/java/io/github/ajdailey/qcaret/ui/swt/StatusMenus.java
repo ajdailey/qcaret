@@ -12,7 +12,6 @@ import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Event;
-import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.Menu;
 import org.eclipse.swt.widgets.MenuItem;
@@ -162,7 +161,7 @@ final class StatusMenus {
    *
    * @param preview the preview field
    */
-  void hookPreview(final Label preview) {
+  void hookPreview(final StatusField preview) {
     preview.setToolTipText(UiText.STATUS_PREVIEW_TIP.text());
     preview.addListener(
         SWT.MouseUp,

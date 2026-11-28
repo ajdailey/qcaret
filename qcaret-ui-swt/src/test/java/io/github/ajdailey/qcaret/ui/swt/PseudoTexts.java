@@ -95,6 +95,8 @@ final class PseudoTexts {
       }
     } else if (control instanceof CLabel label) {
       fitted(at, label, text(at, label.getText()), false);
+    } else if (control instanceof StatusField field) {
+      fitted(at, field, text(at, field.getText()), false);
     } else if (control instanceof Button button) {
       fitted(at, button, text(at, button.getText()), (button.getStyle() & SWT.WRAP) != 0);
     } else if (control instanceof Link link) {
